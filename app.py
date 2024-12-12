@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 import base64
 import logging
 
+@app.route('/')
+def index():
+    return "Welcome to the Student ID Scanner API! Use the appropriate endpoints to upload and process files."
+
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
