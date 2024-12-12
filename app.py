@@ -129,10 +129,11 @@ def process_image(image_path):
         error_message = f"Error processing image {image_path}: {str(e)}"
         logger.error(error_message, exc_info=True)
         return {'error': error_message}
-
+        
 @app.route('/')
 def index():
-    return "Welcome to the Student ID Scanner API! Use the appropriate endpoints to upload and process files."
+    return send_from_directory('static', 'index.html')
+
 
 @app.route('/download/<filename>')
 def download_file(filename):
