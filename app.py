@@ -7,12 +7,7 @@ from flask_cors import CORS
 from PIL import Image
 import google.generativeai as genai
 from dotenv import load_dotenv
-import base64
 import logging
-
-@app.route('/')
-def index():
-    return "Welcome to the Student ID Scanner API! Use the appropriate endpoints to upload and process files."
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -62,46 +57,46 @@ def process_image(image_path):
     """Process a single image using Gemini Vision API"""
     try:
         logger.info(f"Processing image: {image_path}")
-        
+
         # Open and prepare the image
         try:
             image = Image.open(image_path)
-            
+
             # Convert image to RGB mode if it's not already
             if image.mode != 'RGB':
                 image = image.convert('RGB')
-            
+
             # Optionally resize if image is too large
             max_size = 2000
             if max(image.size) > max_size:
                 ratio = max_size / max(image.size)
                 new_size = tuple(int(dim * ratio) for dim in image.size)
                 image = image.resize(new_size, Image.Resampling.LANCZOS)
-            
+
         except Exception as e:
             error_message = f"Error opening image {image_path}: {str(e)}"
             logger.error(error_message)
             return {'error': error_message}
-        
+
         # Create prompt for Gemini
         prompt = """
         Extract the following information from this student ID card:
         1. Student Name
         2. Student ID Number
-        
+
         Format the response as:
         Name: [extracted name]
         ID: [extracted ID number]
-        
+
         If you can't find either piece of information, indicate with 'Not found'.
         Only include the above fields, no other text.
         """
-        
+
         # Generate response from Gemini
         try:
             response = model.generate_content([prompt, image])
             logger.info(f"Gemini API Response: {response.text}")
-            
+
             # Parse the response
             response_lines = response.text.strip().split('\n')
             student_data = {
@@ -110,19 +105,19 @@ def process_image(image_path):
                 'raw_text': response.text,
                 'processed_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
-            
+
             for line in response_lines:
                 if line.startswith('Name:'):
                     student_data['name'] = line.replace('Name:', '').strip()
                 elif line.startswith('ID:'):
                     student_data['id'] = line.replace('ID:', '').strip()
-            
+
             # Check if we found any data
             if student_data['name'] == 'Not found' and student_data['id'] == 'Not found':
                 error_message = "Could not find student ID or name in the image"
                 logger.warning(error_message)
                 return {'error': error_message}
-            
+
             return student_data
 
         except Exception as e:
@@ -134,6 +129,10 @@ def process_image(image_path):
         error_message = f"Error processing image {image_path}: {str(e)}"
         logger.error(error_message, exc_info=True)
         return {'error': error_message}
+
+@app.route('/')
+def index():
+    return "Welcome to the Student ID Scanner API! Use the appropriate endpoints to upload and process files."
 
 @app.route('/download/<filename>')
 def download_file(filename):
@@ -193,25 +192,16 @@ def upload_files():
         # Save to Excel with timestamp
         if processed_data:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
+
             # Create DataFrame
             df = pd.DataFrame(processed_data)
-            
+
             # Save to Excel with better formatting
             excel_filename = f'student_data_{timestamp}.xlsx'
             excel_path = os.path.join(app.config['EXPORT_FOLDER'], excel_filename)
-            
+
             with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
                 df.to_excel(writer, index=False, sheet_name='Student Data')
-                
-                # Auto-adjust columns width
-                worksheet = writer.sheets['Student Data']
-                for idx, col in enumerate(df.columns):
-                    max_length = max(
-                        df[col].astype(str).apply(len).max(),
-                        len(col)
-                    ) + 2
-                    worksheet.column_dimensions[chr(65 + idx)].width = max_length
 
             logger.info(f"Saved data to Excel: {excel_filename}")
 
@@ -231,10 +221,6 @@ def upload_files():
         error_message = f"Error in upload_files: {str(e)}"
         logger.error(error_message, exc_info=True)
         return jsonify({'error': error_message}), 500
-
-@app.route('/')
-def index():
-    return send_from_directory('static', 'index.html')
 
 if __name__ == '__main__':
     logger.info("Starting application...")
